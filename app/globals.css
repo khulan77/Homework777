@@ -1,26 +1,130 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────
+   Мануу — дизайны токен
+   Тал нутгийн өдөр: тэнгэрийн хөх, өвсний ногоон,
+   нарны шар, шагайн ясан өнгө.
+   Улаан өнгө АЛДААНД хэрэглэхгүй — зөвхөн дулаан зүйлд.
+   ───────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --c-sky-hi:#BFE6F8;  --c-sky-lo:#E8F6FD;
+  --c-hill-far:#8FC98C; --c-hill-mid:#6CB76E; --c-hill-near:#57A85C;
+  --c-earth:#C2A06A;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --c-felt:#FAF5EC;    --c-felt-sh:#E4DACA;  --c-door:#CE6B2E;
+  --c-wood:#A87748;    --c-wood-dk:#7A5433;
+  --c-bone:#F6E8CE;    --c-bone-sh:#DCC5A0;  --c-bone-ln:#9A7E58;
+  --c-khadag:#2E7DBF;
+
+  --c-blue:#2C8FD1;    --c-blue-dk:#1D6EA6;
+  --c-grass:#4FB08C;   --c-grass-dk:#2F8C6C;
+  --c-sun:#FFB42E;     --c-sun-dk:#E09000;
+  --c-coral:#FF8071;
+
+  --c-ink:#1B2E3E;     --c-ink-2:#4E6577;    --c-muted:#7E93A3;
+  --c-bg:#FBFDFE;      --c-card:#FFFFFF;     --c-card-2:#F1F8FC;
+  --c-line:#DCE9F1;
+  --c-glass:rgb(255 255 255 / 0.9);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --c-sky-hi:#1E3450;  --c-sky-lo:#16283C;
+    --c-hill-far:#2E5943; --c-hill-mid:#27503C; --c-hill-near:#1F4433;
+    --c-earth:#5B4A31;
+    --c-felt:#243447;    --c-felt-sh:#33465C;
+    --c-bone:#F0E0C4;    --c-bone-sh:#C9AE86;
+    --c-blue:#5FB3E8;    --c-blue-dk:#8ACAF3;
+    --c-grass:#6CC8A4;   --c-grass-dk:#8FDCBB;
+    --c-sun:#FFC559;     --c-sun-dk:#FFD98A;
+    --c-coral:#FF9A8D;
+    --c-ink:#E9F2F8;     --c-ink-2:#B4C8D6;   --c-muted:#8299AA;
+    --c-bg:#101A24;      --c-card:#1A2836;    --c-card-2:#16222E;
+    --c-line:#2B3F52;
+    --c-glass:rgb(26 40 54 / 0.92);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+[data-theme="dark"] {
+  --c-sky-hi:#1E3450;  --c-sky-lo:#16283C;
+  --c-hill-far:#2E5943; --c-hill-mid:#27503C; --c-hill-near:#1F4433;
+  --c-earth:#5B4A31;
+  --c-felt:#243447;    --c-felt-sh:#33465C;
+  --c-bone:#F0E0C4;    --c-bone-sh:#C9AE86;
+  --c-blue:#5FB3E8;    --c-blue-dk:#8ACAF3;
+  --c-grass:#6CC8A4;   --c-grass-dk:#8FDCBB;
+  --c-sun:#FFC559;     --c-sun-dk:#FFD98A;
+  --c-coral:#FF9A8D;
+  --c-ink:#E9F2F8;     --c-ink-2:#B4C8D6;   --c-muted:#8299AA;
+  --c-bg:#101A24;      --c-card:#1A2836;    --c-card-2:#16222E;
+  --c-line:#2B3F52;
+  --c-glass:rgb(26 40 54 / 0.92);
+}
+
+/* Tailwind-д токеныг өгнө — bg-grass, text-ink гэх мэтээр ашиглана */
+@theme inline {
+  --color-sky-hi: var(--c-sky-hi);
+  --color-sky-lo: var(--c-sky-lo);
+  --color-hill-far: var(--c-hill-far);
+  --color-hill-mid: var(--c-hill-mid);
+  --color-hill-near: var(--c-hill-near);
+  --color-earth: var(--c-earth);
+  --color-felt: var(--c-felt);
+  --color-felt-sh: var(--c-felt-sh);
+  --color-door: var(--c-door);
+  --color-wood: var(--c-wood);
+  --color-wood-dk: var(--c-wood-dk);
+  --color-bone: var(--c-bone);
+  --color-bone-sh: var(--c-bone-sh);
+  --color-bone-ln: var(--c-bone-ln);
+  --color-khadag: var(--c-khadag);
+  --color-blue: var(--c-blue);
+  --color-blue-dk: var(--c-blue-dk);
+  --color-grass: var(--c-grass);
+  --color-grass-dk: var(--c-grass-dk);
+  --color-sun: var(--c-sun);
+  --color-sun-dk: var(--c-sun-dk);
+  --color-coral: var(--c-coral);
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-muted: var(--c-muted);
+  --color-bg: var(--c-bg);
+  --color-card: var(--c-card);
+  --color-card-2: var(--c-card-2);
+  --color-line: var(--c-line);
+  --color-glass: var(--c-glass);
+
+  --font-display: var(--font-comfortaa), "Trebuchet MS", sans-serif;
+  --font-sans: var(--font-rubik), system-ui, sans-serif;
+
+  --radius-card: 22px;
+  --radius-pill: 999px;
+}
+
+@layer base {
+  html { color-scheme: light dark; }
+  body {
+    background: var(--c-bg);
+    color: var(--c-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.16; }
+  :focus-visible { outline: 3px solid var(--c-blue); outline-offset: 3px; border-radius: 12px; }
+}
+
+@layer utilities {
+  /* Хүүхдийн товч: доор нь "зузаан" сүүдэртэй, дарахад дарагдана */
+  .press { transition: transform .11s, box-shadow .11s; }
+  .press:active { transform: translateY(3px); }
+
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
 }
