@@ -1,45 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { Manuu } from "@/components/manuu/Manuu";
 import { Bubble } from "@/components/manuu/Bubble";
 import { NumberViz } from "@/components/shagai/Shagai";
 import { Steppe, Khee } from "@/components/scene/Steppe";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { requestHint, startSession, submitAnswer, summarize } from "@/lib/tutor/engine";
-import type { Problem, SessionState, TutorReply } from "@/lib/tutor/types";
+import type { ProblemView, TurnView } from "@/lib/tutor/view";
+import { answerStep, askHint, type ActionResult } from "./actions";
 
+/**
+ * Бодох дэлгэц.
+ *
+ * Энэ компонент зөв хариуг МЭДЭХГҮЙ. Бүх шийдвэр сервер дээр гарна
+ * (app/khuuhed/bodyo/actions.ts). Энд байгаа зүйл нь Мануугийн хэлсэн үг,
+ * товшихад бэлэн сонголтууд, гарын үсэгтэй token — өөр юу ч биш.
+ */
 export function SolveClient({
   problem,
+  initial,
   nextId,
 }: {
-  problem: Problem;
+  problem: ProblemView;
+  initial: TurnView;
   nextId: string | null;
 }) {
-  const [reply, setReply] = useState<TutorReply>(() => startSession(problem));
+  const [view, setView] = useState<TurnView>(initial);
   const [typing, setTyping] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [pending, start] = useTransition();
+
+  const apply = useCallback((res: ActionResult) => {
+    if (res.ok) {
+      setFailed(false);
+      setView(res.view);
+    } else {
+      // Хүүхдэд техникийн алдаа харуулахгүй — Мануу л ярина.
+      setFailed(true);
+    }
+  }, []);
 
   const answer = useCallback(
     (value: string) => {
-      if (reply.finished || typing) return;
+      if (view.finished || typing || pending) return;
       setPicked(value);
-      const next = submitAnswer(problem, reply.state, value, "tap");
-      setReply(next);
-      // Зөв хариулсны дараа сонголтыг чөлөөлж, дараагийн алхмыг бэлдэнэ
-      if (next.verdict === "correct") setTimeout(() => setPicked(null), 700);
+      start(async () => {
+        const res = await answerStep(view.token, value, "tap");
+        apply(res);
+        if (res.ok && res.view.verdict === "correct") setPicked(null);
+      });
     },
-    [problem, reply.finished, reply.state, typing],
+    [apply, pending, typing, view.finished, view.token],
   );
 
   const hint = useCallback(() => {
-    if (reply.finished) return;
-    setReply(requestHint(problem, reply.state));
-  }, [problem, reply.finished, reply.state]);
+    if (view.finished || pending) return;
+    start(async () => apply(await askHint(view.token)));
+  }, [apply, pending, view.finished, view.token]);
 
   const tone =
-    reply.verdict === "correct" ? "good" : reply.verdict ? "warm" : "plain";
+    view.verdict === "correct" ? "good" : view.verdict ? "warm" : "plain";
+  const say = failed
+    ? "Жаахан бодоод байна… Дахиад нэг дарж үзээрэй 😊"
+    : view.say;
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden bg-gradient-to-b from-sky-hi to-sky-lo">
@@ -47,42 +72,34 @@ export function SolveClient({
       <Khee className="absolute inset-x-0 top-0 z-[2]" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 px-4 pb-5 pt-5">
-        <TopBar
-          state={reply.state}
-          total={problem.steps.length}
-          backHref="/khuuhed"
-        />
+        <TopBar stepIndex={view.stepIndex} total={view.totalSteps} />
 
         <div className="flex max-w-2xl items-start gap-3">
           <Manuu
-            mood={reply.mood}
+            mood={pending ? "think" : view.mood}
             size="md"
             talking={typing}
-            onTap={() => undefined}
             className="shrink-0"
           />
           <div className="mt-4 flex-1">
-            <Bubble key={reply.say} text={reply.say} tone={tone} onTyping={setTyping} />
+            <Bubble key={say} text={say} tone={failed ? "warm" : tone} onTyping={setTyping} />
           </div>
         </div>
 
-        <Equation problem={problem} filled={reply.fillSlot} />
+        <Equation problem={problem} filled={view.fillSlot} />
 
-        {reply.finished ? (
-          <Finished
-            state={reply.state}
-            nextId={nextId}
-          />
+        {view.finished ? (
+          <Finished summary={view.summary} nextId={nextId} />
         ) : (
           <>
             <Options
-              options={reply.options}
+              options={view.options}
               picked={picked}
-              verdict={reply.verdict}
-              disabled={typing}
+              verdict={view.verdict}
+              disabled={typing || pending}
               onPick={answer}
             />
-            <Tools onHint={hint} hintLevel={reply.state.hintLevel} />
+            <Tools onHint={hint} canHint={view.canHint && !pending} />
           </>
         )}
       </div>
@@ -92,30 +109,25 @@ export function SolveClient({
 
 /* ─────────────────────────────────────────── */
 
-function TopBar({
-  state,
-  total,
-  backHref,
-}: {
-  state: SessionState;
-  total: number;
-  backHref: string;
-}) {
+function TopBar({ stepIndex, total }: { stepIndex: number; total: number }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <Link
-        href={backHref}
+        href="/khuuhed"
         aria-label="Буцах"
         className="press grid h-11 w-11 place-items-center rounded-full bg-glass text-xl shadow-[0_3px_0_rgb(27_46_62/0.12)] backdrop-blur-sm"
       >
         ←
       </Link>
-      <div className="flex items-center gap-1.5" aria-label={`${total} алхмаас ${state.stepIndex + 1} дэх`}>
+      <div
+        className="flex items-center gap-1.5"
+        aria-label={`${total} алхмаас ${Math.min(stepIndex + 1, total)} дэх`}
+      >
         {Array.from({ length: total }, (_, i) => (
           <span
             key={i}
             className={`block h-2.5 w-7 rounded-full ${
-              i < state.stepIndex ? "bg-grass" : i === state.stepIndex ? "bg-blue" : "bg-black/10"
+              i < stepIndex ? "bg-grass" : i === stepIndex ? "bg-blue" : "bg-black/10"
             }`}
           />
         ))}
@@ -155,7 +167,13 @@ function Term({ n }: { n: number }) {
   );
 }
 
-function Equation({ problem, filled }: { problem: Problem; filled: string | null }) {
+function Equation({
+  problem,
+  filled,
+}: {
+  problem: ProblemView;
+  filled: string | null;
+}) {
   const { left, op, right, result, blank } = problem.display;
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 py-1">
@@ -177,7 +195,7 @@ function Options({
 }: {
   options: (number | string)[] | null;
   picked: string | null;
-  verdict: TutorReply["verdict"];
+  verdict: TurnView["verdict"];
   disabled: boolean;
   onPick: (v: string) => void;
 }) {
@@ -211,10 +229,10 @@ function Options({
   );
 }
 
-function Tools({ onHint, hintLevel }: { onHint: () => void; hintLevel: number }) {
+function Tools({ onHint, canHint }: { onHint: () => void; canHint: boolean }) {
   return (
     <div className="flex flex-wrap justify-center gap-2 pb-2">
-      <Button variant="sun" size="md" onClick={onHint} disabled={hintLevel >= 2}>
+      <Button variant="sun" size="md" onClick={onHint} disabled={!canHint}>
         💡 Тусла
       </Button>
       <Button variant="glass" size="md">🎤 Хэлэх</Button>
@@ -223,20 +241,26 @@ function Tools({ onHint, hintLevel }: { onHint: () => void; hintLevel: number })
   );
 }
 
-function Finished({ state, nextId }: { state: SessionState; nextId: string | null }) {
-  const s = summarize(state);
-  const taughtOut = state.status === "taughtOut";
-
+function Finished({
+  summary,
+  nextId,
+}: {
+  summary: TurnView["summary"];
+  nextId: string | null;
+}) {
   return (
     <div className="mt-auto grid gap-3 pb-2">
       <div className="rounded-[20px] border-2 border-grass bg-glass p-4 backdrop-blur-sm">
         <p className="font-display text-xl font-bold text-ink">
-          {taughtOut ? "Хамтдаа хийлээ 😊" : "Чи чадлаа! 🌟"}
+          {summary?.taughtOut ? "Хамтдаа хийлээ 😊" : "Чи чадлаа! 🌟"}
         </p>
-        <p className="mt-1 text-[15px] text-ink-2">
-          {s.totalSteps} алхмаас <b className="text-ink">{s.unaidedSteps}</b>-ыг нь
-          тусламжгүй өөрөө боджээ.
-        </p>
+        {summary && (
+          <p className="mt-1 text-[15px] text-ink-2">
+            {summary.totalSteps} алхмаас{" "}
+            <b className="text-ink">{summary.unaidedSteps}</b>-ыг нь тусламжгүй
+            өөрөө боджээ.
+          </p>
+        )}
       </div>
       {/* Дараагийн бодлого руу АВТОМАТААР шилжихгүй — хүүхэд өөрөө сонгоно */}
       <div className="grid gap-2 sm:grid-cols-2">

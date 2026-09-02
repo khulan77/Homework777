@@ -30,11 +30,11 @@ export function startSession(problem: Problem): TutorReply {
     unaidedSteps: 0,
     totalSteps: problem.steps.length,
     status: "active",
-    turns: [turn("manuu", first.ask, 0)],
     startedAt: Date.now(),
   };
   return {
     state,
+    newTurns: [turn("manuu", first.ask, 0)],
     say: first.ask,
     mood: "idle",
     verdict: null,
@@ -45,22 +45,16 @@ export function startSession(problem: Problem): TutorReply {
 }
 
 /** Хүүхэд "Тусла" дарлаа. Шат ахина, гэхдээ 2-оос хэтрэхгүй. */
-export function requestHint(
-  problem: Problem,
-  state: SessionState,
-): TutorReply {
+export function requestHint(problem: Problem, state: SessionState): TutorReply {
+  if (state.status !== "active") return idleReply(state);
+
   const step = problem.steps[state.stepIndex];
   const level = Math.min(state.hintLevel + 1, 2) as 1 | 2;
   const say = step.hints[level - 1];
 
-  const next: SessionState = {
-    ...state,
-    hintLevel: level,
-    turns: [...state.turns, turn("manuu", say, state.stepIndex)],
-  };
-
   return {
-    state: next,
+    state: { ...state, hintLevel: level },
+    newTurns: [turn("manuu", say, state.stepIndex)],
     say,
     mood: "think",
     verdict: null,
@@ -86,28 +80,14 @@ export function submitAnswer(
   raw: string,
   mode: Turn["mode"] = "tap",
 ): TutorReply {
-  if (state.status !== "active") {
-    return {
-      state,
-      say: "",
-      mood: "idle",
-      verdict: null,
-      options: null,
-      finished: true,
-      fillSlot: null,
-    };
-  }
+  if (state.status !== "active") return idleReply(state);
 
   const step = problem.steps[state.stepIndex];
   const { verdict, nearMiss } = judge(step.expect, raw, step.nearMisses);
-
-  const turns = [
-    ...state.turns,
-    turn("child", raw, state.stepIndex, { mode, verdict }),
-  ];
+  const childTurn = turn("child", raw, state.stepIndex, { mode, verdict });
 
   if (verdict === "correct") {
-    return advance(problem, state, turns, step.celebrate, "joy", "correct");
+    return advance(problem, state, [childTurn], step.celebrate, "joy", "correct");
   }
 
   const wrongCount = state.wrongCount + 1;
@@ -116,7 +96,7 @@ export function submitAnswer(
     return advance(
       problem,
       { ...state, wrongCount },
-      turns,
+      [childTurn],
       step.teachOut,
       "calm",
       "wrong",
@@ -129,15 +109,9 @@ export function submitAnswer(
   const say = nearMiss ? nearMiss.reply : step.hints[hintLevel - 1];
   const mood: Mood = verdict === "near" ? "curious" : "think";
 
-  const next: SessionState = {
-    ...state,
-    wrongCount,
-    hintLevel,
-    turns: [...turns, turn("manuu", say, state.stepIndex)],
-  };
-
   return {
-    state: next,
+    state: { ...state, wrongCount, hintLevel },
+    newTurns: [childTurn, turn("manuu", say, state.stepIndex)],
     say,
     mood,
     verdict,
@@ -162,18 +136,17 @@ function advance(
   const stepIndex = state.stepIndex + 1;
   const isLast = stepIndex >= problem.steps.length;
 
-  const withReply = [...turns, turn("manuu", say, state.stepIndex)];
+  const newTurns = [...turns, turn("manuu", say, state.stepIndex)];
 
   if (isLast) {
-    const state2: SessionState = {
-      ...state,
-      stepIndex,
-      unaidedSteps,
-      status: taughtOut ? "taughtOut" : "solved",
-      turns: withReply,
-    };
     return {
-      state: state2,
+      state: {
+        ...state,
+        stepIndex,
+        unaidedSteps,
+        status: taughtOut ? "taughtOut" : "solved",
+      },
+      newTurns,
       say,
       mood,
       verdict,
@@ -184,23 +157,28 @@ function advance(
   }
 
   const nextStep = problem.steps[stepIndex];
-  const state2: SessionState = {
-    ...state,
-    stepIndex,
-    wrongCount: 0,
-    hintLevel: 0,
-    unaidedSteps,
-    turns: [...withReply, turn("manuu", nextStep.ask, stepIndex)],
-  };
-
   return {
-    state: state2,
+    state: { ...state, stepIndex, wrongCount: 0, hintLevel: 0, unaidedSteps },
+    newTurns: [...newTurns, turn("manuu", nextStep.ask, stepIndex)],
     // Баяр хүргэсэн үг + дараагийн асуултыг НЭГ дор хэлнэ.
     say: `${say} ${nextStep.ask}`,
     mood,
     verdict,
     options: nextStep.options ?? null,
     finished: false,
+    fillSlot: null,
+  };
+}
+
+function idleReply(state: SessionState): TutorReply {
+  return {
+    state,
+    newTurns: [],
+    say: "",
+    mood: "idle",
+    verdict: null,
+    options: null,
+    finished: true,
     fillSlot: null,
   };
 }

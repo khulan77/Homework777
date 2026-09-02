@@ -100,6 +100,14 @@ export type Mood = "idle" | "think" | "curious" | "joy" | "calm";
 
 export type SessionStatus = "active" | "solved" | "taughtOut" | "abandoned";
 
+/**
+ * Session-ий төлөв.
+ *
+ * Зориудаар ЖИЖИГ бөгөөд хязгаартай: гарын үсэгтэй token болж клиент, сервер
+ * хооронд явна. Яриа (`Turn[]`) энд ХУРИМТЛАГДАХГҮЙ — хязгааргүй өсөх байсан.
+ * Харин дуудлага бүр өөрийн үүсгэсэн turn-ээ `TutorReply.newTurns`-ээр буцаана,
+ * тэдгээрийг Phase 4-т өгөгдлийн сан руу бичнэ.
+ */
 export interface SessionState {
   problemId: string;
   stepIndex: number;
@@ -111,13 +119,14 @@ export interface SessionState {
   unaidedSteps: number;
   totalSteps: number;
   status: SessionStatus;
-  turns: Turn[];
   startedAt: number;
 }
 
 /** Engine-ээс UI рүү буцах нэг үр дүн */
 export interface TutorReply {
   state: SessionState;
+  /** Энэ дуудлагад үүссэн яриа — DB руу бичих зориулалттай, UI-д заавал биш */
+  newTurns: Turn[];
   /** Мануугийн хэлэх үг */
   say: string;
   mood: Mood;
