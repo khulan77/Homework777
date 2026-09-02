@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { Manuu } from "@/components/manuu/Manuu";
+import { ManuuStage } from "@/components/manuu/ManuuStage";
 import { Bubble } from "@/components/manuu/Bubble";
+import { COSTUME_LIST, type CostumeId } from "@/components/manuu/costumes";
 import type { Mood } from "@/lib/tutor/types";
 
 /**
@@ -55,12 +56,15 @@ export function Greeting({
 }) {
   const hour = useSyncExternalStore(NEVER, clientHour, serverNull);
   const [typing, setTyping] = useState(false);
+  const [costume, setCostume] = useState<CostumeId>("none");
   const g = hour === null ? null : greet(childName, lastTopic, hour);
 
   return (
+    <div className="grid gap-3">
     <div className="flex max-w-2xl items-start gap-3">
-      <Manuu
+      <ManuuStage
         mood={g?.mood ?? "idle"}
+        costume={costume}
         size="lg"
         waving
         talking={typing}
@@ -78,6 +82,41 @@ export function Greeting({
           </div>
         </div>
       </div>
+    </div>
+    <CostumePicker value={costume} onChange={setCostume} />
+    </div>
+  );
+}
+
+/**
+ * Хувцас солих. Урамшуулал нь ОНОО биш, ЭНЭ.
+ * Хүүхэд «би 20 оноотой» гэхээс «Мануу маань дээлтэй боллоо» гэх нь илүү наалддаг.
+ */
+function CostumePicker({
+  value,
+  onChange,
+}: {
+  value: CostumeId;
+  onChange: (c: CostumeId) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Мануугийн хувцас">
+      {COSTUME_LIST.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => onChange(c.id)}
+          aria-pressed={value === c.id}
+          className={`press min-h-[44px] rounded-2xl border-2 px-3.5 py-2 text-sm font-semibold backdrop-blur-sm ${
+            value === c.id
+              ? "border-blue bg-blue text-white shadow-[0_3px_0_var(--c-blue-dk)]"
+              : "border-transparent bg-glass text-ink shadow-[0_3px_0_rgb(27_46_62/0.12)]"
+          }`}
+        >
+          <span aria-hidden className="mr-1.5">{c.emoji}</span>
+          {c.nameMn}
+        </button>
+      ))}
     </div>
   );
 }
